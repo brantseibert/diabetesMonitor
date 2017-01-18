@@ -1,0 +1,5 @@
+aws-iot-device-sdk-python
+__pycache__
+*.pem
+*.key
+*.crt
