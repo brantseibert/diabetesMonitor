@@ -1,6 +1,7 @@
 import time
 import datetime
 import random
+import json
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
 from insulin_pump import InsulinPump
@@ -11,16 +12,17 @@ from timezone import MST
 #############################################
 ## Variables used to simulate glucose levels
 #############################################
-FILENAME = "blood_sugars.txt"
+FILENAME = "username.txt"
+USERNAME = ""
 
 ## Time between steps (minutes)
-D_TIME = 0.1
+D_TIME = 5
 
 ## Steps per hour
 STEPS = 60/D_TIME
 
 ## Simulated glucose level (mg/dL)
-glucose = [120]
+glucose = 120
 ## Delta glucose level  (mg/dL/h)
 #  should roughly be 0 for perfect control
 D_GLUCOSE = 50
@@ -94,7 +96,22 @@ def isSnack(current_time):
 	return False
 
 
+def getUsername():
+        try:
+                with open(FILENAME) as f:
+                        return f.readline()
+        except IOError:
+                f = open(FILENAME, 'w')
+                name = raw_input('Enter patient name: ')
+                f.write(name)
+                f.close()
+                return name
+
+        
 if __name__ == '__main__':
+
+        USERNAME = getUsername()
+        print( USERNAME )
 
 	aws_client = aws_initialize()
 	ip = InsulinPump()
@@ -102,7 +119,10 @@ if __name__ == '__main__':
 
 	while(True):
 
-		last_glucose = glucose[len(glucose)-1]
+                insulin_usage = 0
+                carbs_ate = 0
+                
+		last_glucose = glucose
 
 		current_datetime = datetime.datetime.now(MST())
 
@@ -122,7 +142,7 @@ if __name__ == '__main__':
 		d_basal = basal*D_GTOI/STEPS
 
 		# Calculate the newest glucose measurement
-		glucose.append( last_glucose + D_GLUCOSE/STEPS + d_carbs + d_bolus + d_basal )
+		glucose = last_glucose + D_GLUCOSE/STEPS + d_carbs + d_bolus + d_basal
 
 		## First thing to consider is if the patient has reached the 
 		#  max or min glucose level. If the max is reached, a bolus is given.
@@ -132,10 +152,11 @@ if __name__ == '__main__':
 			correction_dose = correction_difference/correction[0] if abs(correction_difference)>correction[2] else 0
 			ip.bolus(current_datetime,correction_dose)
 
-			with open(FILENAME,"a") as file:
-				file.write("A correction does was given\n")
-				file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(correction_dose) + "\n")
-			aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(correction_dose) + "\n",1)
+			#with open(FILENAME,"a") as file:
+			#	file.write("A correction does was given\n")
+			#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(correction_dose) + "\n")
+			#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(correction_dose) + "\n",1)
+			insulin_usage = correction_dose
 
 			correction_given = True
 			correction_end = current_datetime + datetime.timedelta(hours=1,minutes=30)
@@ -143,10 +164,11 @@ if __name__ == '__main__':
 		elif( last_glucose < MIN_GLUCOSE and not correction_given ):
 			hb.eat(current_datetime,15)
 
-			with open(FILENAME,"a") as file:
-				file.write("A snack was eaten for a low blood sugar\n")
-				file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") +",\t15\n")
-			aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") +",\t15\n",1)
+			#with open(FILENAME,"a") as file:
+			#	file.write("A snack was eaten for a low blood sugar\n")
+			#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") +",\t15\n")
+			#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") +",\t15\n",1)
+			carbs_ate = 15
 
 			correction_given = True
 			correction_end = current_datetime + datetime.timedelta(minutes=15)
@@ -165,12 +187,14 @@ if __name__ == '__main__':
 				correction_dose = correction_dose if not correction_given else 0
 				ip.bolus(current_datetime,meal_dose+correction_dose)
 
-				with open(FILENAME,"a") as file:
-					file.write("Breakfast has been eaten\n")
-					file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
-					file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				#with open(FILENAME,"a") as file:
+				#	file.write("Breakfast has been eaten\n")
+				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
+				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
+				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
+				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				insulin_usage = meal_dose+correction_does
+				carbs_ate = meal
 
 
 				breakfast = 0.1
@@ -188,12 +212,14 @@ if __name__ == '__main__':
 				correction_dose = correction_dose if not correction_given else 0
 				ip.bolus(current_datetime,meal_dose+correction_dose)
 
-				with open(FILENAME,"a") as file:
-					file.write("Lunch has been eaten\n")
-					file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
-					file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				#with open(FILENAME,"a") as file:
+				#	file.write("Lunch has been eaten\n")
+				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
+				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
+				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
+				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				insulin_usage = meal_dose+correction_does
+				carbs_ate = meal
 
 				lunch = 0.1
 				lunch_ate = True
@@ -210,12 +236,14 @@ if __name__ == '__main__':
 				correction_dose = correction_dose if not correction_given else 0
 				ip.bolus(current_datetime,meal_dose+correction_dose)
 
-				with open(FILENAME,"a") as file:
-					file.write("Dinner has been eaten\n")
-					file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
-					file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				#with open(FILENAME,"a") as file:
+				#	file.write("Dinner has been eaten\n")
+				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
+				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
+				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
+				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				insulin_usage = meal_dose+correction_does
+				carbs_ate = meal
 
 				dinner = 0.2
 				dinner_ate = True
@@ -232,12 +260,14 @@ if __name__ == '__main__':
 				correction_dose = correction_dose if not correction_given else 0
 				ip.bolus(current_datetime,meal_dose+correction_dose)
 
-				with open(FILENAME,"a") as file:
-					file.write("A late night snack has been eaten\n")
-					file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n")
-					file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				#with open(FILENAME,"a") as file:
+				#	file.write("A late night snack has been eaten\n")
+				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n")
+				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
+				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
+				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
+				insulin_usage = meal_dose+correction_does
+				carbs_ate = meal
 
 				snack = 0.05
 				snack_ate = True
@@ -246,10 +276,14 @@ if __name__ == '__main__':
 		elif( current_datetime > correction_end ):
 			correction_given = False
 
-		with open(FILENAME,"a") as file:
-			file.write("Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n")
-		aws_client.publish("Ascentti/DiabetesMonitor","Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n",1)
+		#with open(FILENAME,"a") as file:
+		#	file.write("Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n")
+		#aws_client.publish("Ascentti/DiabetesMonitor","Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n",1)
 
+                data = [{ USERNAME : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
+                json_data = json.dumps(data)
+
+                aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
 
 		time.sleep(D_TIME*60)
 

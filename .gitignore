@@ -3,3 +3,5 @@ __pycache__
 *.pem
 *.key
 *.crt
+*.pyc
+username.txt

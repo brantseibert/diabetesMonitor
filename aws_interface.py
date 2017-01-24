@@ -15,6 +15,7 @@
  */
  '''
 
+import boto3
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 import sys
 import logging
@@ -22,108 +23,101 @@ import time
 import getopt
 
 def aws_initialize():
-	# Usage
-	usageInfo = """Usage:
+        # Usage
+        usageInfo = """Usage:
 
-	Use certificate based mutual authentication:
-	python basicPubSub.py -e <endpoint> -r <rootCAFilePath> -c <certFilePath> -k <privateKeyFilePath>
-
-	Use MQTT over WebSocket:
-	python basicPubSub.py -e <endpoint> -r <rootCAFilePath> -w
-
-	Type "python basicPubSub.py -h" for available options.
-	"""
-	# Help info
-	helpInfo = """-e, --endpoint
-		Your AWS IoT custom endpoint
-	-r, --rootCA
-		Root CA file path
-	-c, --cert
-		Certificate file path
-	-k, --key
-		Private key file path
-	-w, --websocket
-		Use MQTT over WebSocket
-	-h, --help
-		Help information
+        python basicPubSub_CognitoSTS.py -e <endpoint> -r <rootCAFilePath> -C <CognitoIdentityPoolID>
 
 
-	"""
+        Type "python basicPubSub_CognitoSTS.py -h" for available options.
+        """
+        # Help info
+        helpInfo = """-e, --endpoint
+                Your AWS IoT custom endpoint
+        -r, --rootCA
+                Root CA file path
+        -C, --CognitoIdentityPoolID
+                Your AWS Cognito Identity Pool ID
+        -h, --help
+                Help information
 
-	# Read in command-line parameters
-	useWebsocket = False
-	host = ""
-	rootCAPath = ""
-	certificatePath = ""
-	privateKeyPath = ""
-	try:
-		opts, args = getopt.getopt(sys.argv[1:], "hwe:k:c:r:", ["help", "endpoint=", "key=","cert=","rootCA=", "websocket"])
-		if len(opts) == 0:
-			raise getopt.GetoptError("No input parameters!")
-		for opt, arg in opts:
-			if opt in ("-h", "--help"):
-				print(helpInfo)
-				exit(0)
-			if opt in ("-e", "--endpoint"):
-				host = arg
-			if opt in ("-r", "--rootCA"):
-				rootCAPath = arg
-			if opt in ("-c", "--cert"):
-				certificatePath = arg
-			if opt in ("-k", "--key"):
-				privateKeyPath = arg
-			if opt in ("-w", "--websocket"):
-				useWebsocket = True
-	except getopt.GetoptError:
-		print(usageInfo)
-		exit(1)
 
-	# Missing configuration notification
-	missingConfiguration = False
-	if not host:
-		print("Missing '-e' or '--endpoint'")
-		missingConfiguration = True
-	if not rootCAPath:
-		print("Missing '-r' or '--rootCA'")
-		missingConfiguration = True
-	if not useWebsocket:
-		if not certificatePath:
-			print("Missing '-c' or '--cert'")
-			missingConfiguration = True
-		if not privateKeyPath:
-			print("Missing '-k' or '--key'")
-			missingConfiguration = True
-	if missingConfiguration:
-		exit(2)
+        """
 
-	# # Configure logging
-	# logger = logging.getLogger("AWSIoTPythonSDK.core")
-	# logger.setLevel(logging.DEBUG)
-	# streamHandler = logging.StreamHandler()
-	# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	# streamHandler.setFormatter(formatter)
-	# logger.addHandler(streamHandler)
+        # Read in command-line parameters
+        host = ""
+        rootCAPath = ""
+        cognitoIdentityPoolID = ""
+        try:
+                opts, args = getopt.getopt(sys.argv[1:], "he:r:C:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID="])
+                if len(opts) == 0:
+                        raise getopt.GetoptError("No input parameters!")
+                for opt, arg in opts:
+                        if opt in ("-h", "--help"):
+                                print(helpInfo)
+                                exit(0)
+                        if opt in ("-e", "--endpoint"):
+                                host = arg
+                        if opt in ("-r", "--rootCA"):
+                                rootCAPath = arg
+                        if opt in ("-C", "--CognitoIdentityPoolID"):
+                                cognitoIdentityPoolID = arg
+        except getopt.GetoptError:
+                print(usageInfo)
+                exit(1)
 
-	# Init AWSIoTMQTTClient
-	myAWSIoTMQTTClient = None
-	if useWebsocket:
-		myAWSIoTMQTTClient = AWSIoTMQTTClient("DiabetesMonitor", useWebsocket=True)
-		myAWSIoTMQTTClient.configureEndpoint(host, 443)
-		myAWSIoTMQTTClient.configureCredentials(rootCAPath)
-	else:
-		myAWSIoTMQTTClient = AWSIoTMQTTClient("DiabetesMonitor")
-		myAWSIoTMQTTClient.configureEndpoint(host, 8883)
-		myAWSIoTMQTTClient.configureCredentials(rootCAPath, privateKeyPath, certificatePath)
+        # Missing configuration notification
+        missingConfiguration = False
+        if not host:
+                print("Missing '-e' or '--endpoint'")
+                missingConfiguration = True
+        if not rootCAPath:
+                print("Missing '-r' or '--rootCA'")
+                missingConfiguration = True
+        if not cognitoIdentityPoolID:
+                print("Missing '-C' or '--CognitoIdentityPoolID'")
+                missingConfiguration = True
+        if missingConfiguration:
+                exit(2)
 
-	# AWSIoTMQTTClient connection configuration
-	myAWSIoTMQTTClient.configureAutoReconnectBackoffTime(1, 32, 20)
-	myAWSIoTMQTTClient.configureOfflinePublishQueueing(-1)  # Infinite offline Publish queueing
-	myAWSIoTMQTTClient.configureDrainingFrequency(2)  # Draining: 2 Hz
-	myAWSIoTMQTTClient.configureConnectDisconnectTimeout(10)  # 10 sec
-	myAWSIoTMQTTClient.configureMQTTOperationTimeout(5)  # 5 sec
+        # Configure logging
+        logger = logging.getLogger("AWSIoTPythonSDK.core")
+        logger.setLevel(logging.DEBUG)
+        streamHandler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        streamHandler.setFormatter(formatter)
+        logger.addHandler(streamHandler)
 
-	# Connect and subscribe to AWS IoT
-	myAWSIoTMQTTClient.connect()
-	time.sleep(2)
+        # Cognito auth
+        identityPoolID = cognitoIdentityPoolID
+        region = host.split('.')[2]
+        cognitoIdentityClient = boto3.client('cognito-identity', region_name=region)
+        # identityPoolInfo = cognitoIdentityClient.describe_identity_pool(IdentityPoolId=identityPoolID)
+        # print identityPoolInfo
+
+        temporaryIdentityId = cognitoIdentityClient.get_id(IdentityPoolId=identityPoolID)
+        identityID = temporaryIdentityId["IdentityId"]
+
+        temporaryCredentials = cognitoIdentityClient.get_credentials_for_identity(IdentityId=identityID)
+        AccessKeyId = temporaryCredentials["Credentials"]["AccessKeyId"]
+        SecretKey = temporaryCredentials["Credentials"]["SecretKey"]
+        SessionToken = temporaryCredentials["Credentials"]["SessionToken"]
+
+        # Init AWSIoTMQTTClient
+        myAWSIoTMQTTClient = AWSIoTMQTTClient("Diabetes Monitor", useWebsocket=True)
+
+        # AWSIoTMQTTClient configuration
+        myAWSIoTMQTTClient.configureEndpoint(host, 443)
+        myAWSIoTMQTTClient.configureCredentials(rootCAPath)
+        myAWSIoTMQTTClient.configureIAMCredentials(AccessKeyId, SecretKey, SessionToken)
+        myAWSIoTMQTTClient.configureAutoReconnectBackoffTime(1, 32, 20)
+        myAWSIoTMQTTClient.configureOfflinePublishQueueing(-1)  # Infinite offline Publish queueing
+        myAWSIoTMQTTClient.configureDrainingFrequency(2)  # Draining: 2 Hz
+        myAWSIoTMQTTClient.configureConnectDisconnectTimeout(10)  # 10 sec
+        myAWSIoTMQTTClient.configureMQTTOperationTimeout(5)  # 5 sec
+
+        # Connect and subscribe to AWS IoT
+        myAWSIoTMQTTClient.connect()
+        time.sleep(2)
 
 	return myAWSIoTMQTTClient

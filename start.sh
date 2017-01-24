@@ -18,4 +18,4 @@ fi
 
 # run pub/sub sample app using certificates downloaded in package
 printf "\nRunning the Diabetes Monitor Simulation...\n"
-python diabetes_sim.py -e a97s39tib3rs1.iot.us-west-2.amazonaws.com -r root-CA.crt -C us-west-2_PGbvGFJ8n
+python diabetes_sim.py -e a97s39tib3rs1.iot.us-west-2.amazonaws.com -r root-CA.crt -C us-west-2:fc5a00da-47a0-4070-a8e9-25c5a6f1d398
