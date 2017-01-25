@@ -10,7 +10,7 @@ If you want to then setup the program to autostart on a raspberry pi, do the fol
 
 chmod 775 startPi.sh
 
-cd /
+cd ~
 
 mkdir logs
 
