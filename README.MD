@@ -1,6 +1,6 @@
 After you have cloned the git repository, to run the program through a terminal do the following:
 
-chmod +x start.sh
+chmod +x start.sh\n
 sudo ./start.sh
 
 It will ask for a patient name and will save that value so it will only need to ask the once
@@ -9,7 +9,8 @@ If you want to then setup the program to autostart on a raspberry pi, do the fol
 
 chmod 775 startPi.sh
 
-cd /
+cd /\n
+
 mkdir logs
 
 sudo crontab -e
