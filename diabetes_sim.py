@@ -283,7 +283,12 @@ if __name__ == '__main__':
 		data = [{ USERNAME : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
 		json_data = json.dumps(data)
 
-		aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
+		try:
+			aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
+		except AWSIoTPythonSDK.exception.AWSIoTExceptions.publishError:
+			print("Error occurred, restarting aws client")
+			aws_client = aws_initialize()
+			aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
 
 		time.sleep(D_TIME*60)
 
