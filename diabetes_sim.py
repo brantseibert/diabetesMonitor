@@ -113,7 +113,7 @@ if __name__ == '__main__':
 	USERNAME = getUsername()
 	print( USERNAME )
 
-	aws_client = aws_initialize()
+	aws_client = aws_initialize(USERNAME)
 	ip = InsulinPump()
 	hb = HumanBody()
 

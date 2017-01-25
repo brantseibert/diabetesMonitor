@@ -22,7 +22,7 @@ import logging
 import time
 import getopt
 
-def aws_initialize():
+def aws_initialize(USERNAME):
 	# Usage
 	usageInfo = """Usage:
 
@@ -104,7 +104,8 @@ def aws_initialize():
 	SessionToken = temporaryCredentials["Credentials"]["SessionToken"]
 
 	# Init AWSIoTMQTTClient
-	myAWSIoTMQTTClient = AWSIoTMQTTClient("Diabetes Monitor", useWebsocket=True)
+	clientID = USERNAME + " Monitor"
+	myAWSIoTMQTTClient = AWSIoTMQTTClient(clientID, useWebsocket=True)
 
 	# AWSIoTMQTTClient configuration
 	myAWSIoTMQTTClient.configureEndpoint(host, 443)
