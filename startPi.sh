@@ -1,6 +1,12 @@
 # stop script on error
 set -e
 
+cd /
+cd home/pi/Documents/Ascentti/Ascentti-Diabetes
+
+# Wait for the network to start
+sleep 10
+
 # Update the source code for the diabetes simulator
 git pull
 
@@ -22,3 +28,5 @@ fi
 # Run the Diabetes Simulation using the Cognito access
 printf "\nRunning the Diabetes Monitor Simulation...\n"
 python diabetes_sim.py -e a97s39tib3rs1.iot.us-west-2.amazonaws.com -r root-CA.crt -C us-west-2:fc5a00da-47a0-4070-a8e9-25c5a6f1d398
+
+cd /
