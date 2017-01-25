@@ -18,7 +18,7 @@ sudo crontab -e
 
 At the end of the file add:
 
-@reboot sh <path to startPi.sh file> > /home/pi/logs/cronlog 2>&1
+@reboot sh "path to startPi.sh file" > /home/pi/logs/cronlog 2>&1
 
 then press CTRL+X, Y, and then ENTER
 
