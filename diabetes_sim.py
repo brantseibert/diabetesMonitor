@@ -193,7 +193,7 @@ if __name__ == '__main__':
 				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
 				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
 				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_does
+				insulin_usage = meal_dose+correction_dose
 				carbs_ate = meal
 
 
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
 				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
 				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_does
+				insulin_usage = meal_dose+correction_dose
 				carbs_ate = meal
 
 				lunch = 0.1
@@ -242,7 +242,7 @@ if __name__ == '__main__':
 				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
 				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
 				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_does
+				insulin_usage = meal_dose+correction_dose
 				carbs_ate = meal
 
 				dinner = 0.2
@@ -266,7 +266,7 @@ if __name__ == '__main__':
 				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
 				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
 				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_does
+				insulin_usage = meal_dose+correction_dose
 				carbs_ate = meal
 
 				snack = 0.05
