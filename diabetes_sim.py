@@ -97,21 +97,21 @@ def isSnack(current_time):
 
 
 def getUsername():
-        try:
-                with open(FILENAME) as f:
-                        return f.readline()
-        except IOError:
-                f = open(FILENAME, 'w')
-                name = raw_input('Enter patient name: ')
-                f.write(name)
-                f.close()
-                return name
+		try:
+				with open(FILENAME) as f:
+						return f.readline()
+		except IOError:
+				f = open(FILENAME, 'w')
+				name = raw_input('Enter patient name: ')
+				f.write(name)
+				f.close()
+				return name
 
-        
+		
 if __name__ == '__main__':
 
-        USERNAME = getUsername()
-        print( USERNAME )
+	USERNAME = getUsername()
+	print( USERNAME )
 
 	aws_client = aws_initialize()
 	ip = InsulinPump()
@@ -119,9 +119,9 @@ if __name__ == '__main__':
 
 	while(True):
 
-                insulin_usage = 0
-                carbs_ate = 0
-                
+		insulin_usage = 0
+		carbs_ate = 0
+				
 		last_glucose = glucose
 
 		current_datetime = datetime.datetime.now(MST())
@@ -280,10 +280,10 @@ if __name__ == '__main__':
 		#	file.write("Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n")
 		#aws_client.publish("Ascentti/DiabetesMonitor","Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n",1)
 
-                data = [{ USERNAME : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
-                json_data = json.dumps(data)
+		data = [{ USERNAME : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
+		json_data = json.dumps(data)
 
-                aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
+		aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
 
 		time.sleep(D_TIME*60)
 
