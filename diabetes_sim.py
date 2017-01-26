@@ -278,7 +278,7 @@ if __name__ == '__main__':
 			aws_client.connect()
 		except ValueError:
 			print("Websocket Handshake Error occurred, reinitializing aws client")
-			aws_client = aws_initialize(USERNAME)
+			aws_client = aws_initialize(USERNAME,host,rootCAPath,cognitoIdentityPoolID)
 			aws_client.connect()
 		time.sleep(2)
 		aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
