@@ -2,12 +2,41 @@ import time
 import datetime
 import random
 import json
+import sys
+import getopt
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
 from insulin_pump import InsulinPump
 from human_body import HumanBody
 from aws_interface import aws_initialize
 from timezone import MST
+
+
+#####################################################################
+## Command line help information
+#####################################################################
+# Usage
+usageInfo = """
+Usage:
+
+python diabetes_sim.py -e <endpoint> -r <rootCAFilePath> -C <CognitoIdentityPoolID>
+
+
+Type "python diabetes_sim.py -h" for available options.
+
+"""
+# Help info
+helpInfo = """
+-e, --endpoint
+	Your AWS IoT custom endpoint
+-r, --rootCA
+	Root CA file path
+-C, --CognitoIdentityPoolID
+	Your AWS Cognito Identity Pool ID
+-h, --help
+	Help information
+
+"""
 
 #############################################
 ## Variables used to simulate glucose levels
@@ -95,7 +124,8 @@ def isSnack(current_time):
 		return True
 	return False
 
-
+## Grab a user defined username so that the data being sent 
+#  can be unique to each instance
 def getUsername():
 		try:
 				with open(FILENAME) as f:
@@ -107,13 +137,49 @@ def getUsername():
 				f.close()
 				return name
 
+## Determine a random value of carbs between minCarbs and MaxCarbs
+#  Determine the dosgae for the meal 
+#  Determine the correction for the current glucose
+#  If a correction had been previously given, don't correct again
+def eatFood(hb,ip,minCarbs,maxCarbs,insulin_to_carb,correction):
+	meal = random.randint(minCarbs,maxCarbs)
+	hb.eat(current_datetime,meal)
+	meal_dose = meal/(1.0*insulin_to_carb)
+	correction_difference = last_glucose-correction[1]
+	correction_dose = correction_difference/(1.0*correction[0]) if abs(correction_difference)>correction[2] else 0
+	correction_dose = correction_dose if not correction_given else 0
+	ip.bolus(current_datetime,meal_dose+correction_dose)
+
+	return (meal_dose+correction_dose), meal
+
 		
 if __name__ == '__main__':
+	# Read in command-line parameters
+	host = ""
+	rootCAPath = ""
+	cognitoIdentityPoolID = ""
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "he:r:C:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID="])
+		if len(opts) == 0:
+			raise getopt.GetoptError("No input parameters!")
+		for opt, arg in opts:
+			if opt in ("-h", "--help"):
+				print(helpInfo)
+				exit(0)
+			if opt in ("-e", "--endpoint"):
+				host = arg
+			if opt in ("-r", "--rootCA"):
+				rootCAPath = arg
+			if opt in ("-C", "--CognitoIdentityPoolID"):
+				cognitoIdentityPoolID = arg
+	except getopt.GetoptError:
+		print(usageInfo)
+		exit(1)
 
 	USERNAME = getUsername()
-	print( USERNAME )
+	print( "Starting Diabetes Monitor for patient: " + USERNAME )
 
-	aws_client = aws_initialize(USERNAME)
+	aws_client = aws_initialize(USERNAME,host,rootCAPath,cognitoIdentityPoolID)
 	ip = InsulinPump()
 	hb = HumanBody()
 
@@ -151,11 +217,6 @@ if __name__ == '__main__':
 			correction_difference = last_glucose-correction[1]
 			correction_dose = correction_difference/correction[0] if abs(correction_difference)>correction[2] else 0
 			ip.bolus(current_datetime,correction_dose)
-
-			#with open(FILENAME,"a") as file:
-			#	file.write("A correction does was given\n")
-			#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(correction_dose) + "\n")
-			#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(correction_dose) + "\n",1)
 			insulin_usage = correction_dose
 
 			correction_given = True
@@ -163,39 +224,18 @@ if __name__ == '__main__':
 
 		elif( last_glucose < MIN_GLUCOSE and not correction_given ):
 			hb.eat(current_datetime,15)
-
-			#with open(FILENAME,"a") as file:
-			#	file.write("A snack was eaten for a low blood sugar\n")
-			#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") +",\t15\n")
-			#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") +",\t15\n",1)
 			carbs_ate = 15
 
 			correction_given = True
 			correction_end = current_datetime + datetime.timedelta(minutes=15)
-		## Then determine if the patient will eat some food
+		## Otherwise determine if the patient will eat some food
 		#  Outside of a snack, there will be a linearly
 		#  increasing chance of eating in the time window
 		#  to a max of 90%
 		elif( isBreakfast(current_datetime.time()) and not breakfast_ate ):
 			snack_ate = False
 			if(random.random()<breakfast):
-				meal = random.randint(30,50)
-				hb.eat(current_datetime,meal)
-				meal_dose = meal/insulin_to_carb
-				correction_difference = last_glucose-correction[1]
-				correction_dose = correction_difference/correction[0] if abs(correction_difference)>correction[2] else 0
-				correction_dose = correction_dose if not correction_given else 0
-				ip.bolus(current_datetime,meal_dose+correction_dose)
-
-				#with open(FILENAME,"a") as file:
-				#	file.write("Breakfast has been eaten\n")
-				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
-				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_dose
-				carbs_ate = meal
-
+				insulin_usage, carbs_ate = eatFood(hb,ip,30,50,insulin_to_carb,correction)
 
 				breakfast = 0.1
 				breakfast_ate = True
@@ -204,22 +244,7 @@ if __name__ == '__main__':
 		elif( isLunch(current_datetime.time()) and not lunch_ate ):
 			breakfast_ate = False
 			if(random.random()<lunch):
-				meal = random.randint(50,80)
-				hb.eat(current_datetime,meal)
-				meal_dose = meal/insulin_to_carb
-				correction_difference = last_glucose-correction[1]
-				correction_dose = correction_difference/correction[0] if abs(correction_difference)>correction[2] else 0
-				correction_dose = correction_dose if not correction_given else 0
-				ip.bolus(current_datetime,meal_dose+correction_dose)
-
-				#with open(FILENAME,"a") as file:
-				#	file.write("Lunch has been eaten\n")
-				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
-				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_dose
-				carbs_ate = meal
+				insulin_usage, carbs_ate = eatFood(hb,ip,50,80,insulin_to_carb,correction)
 
 				lunch = 0.1
 				lunch_ate = True
@@ -228,22 +253,7 @@ if __name__ == '__main__':
 		elif( isDinner(current_datetime.time()) and not dinner_ate):
 			lunch_ate = False
 			if(random.random()<dinner):
-				meal = random.randint(40,100)
-				hb.eat(current_datetime,meal)
-				meal_dose = meal/insulin_to_carb
-				correction_difference = last_glucose-correction[1]
-				correction_dose = correction_difference/correction[0] if abs(correction_difference)>correction[2] else 0
-				correction_dose = correction_dose if not correction_given else 0
-				ip.bolus(current_datetime,meal_dose+correction_dose)
-
-				#with open(FILENAME,"a") as file:
-				#	file.write("Dinner has been eaten\n")
-				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n" )
-				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_dose
-				carbs_ate = meal
+				insulin_usage, carbs_ate = eatFood(hb,ip,40,100,insulin_to_carb,correction)
 
 				dinner = 0.2
 				dinner_ate = True
@@ -252,22 +262,7 @@ if __name__ == '__main__':
 		elif( isSnack(current_datetime.time()) and not snack_ate ):
 			dinner_ate = False
 			if(random.random()<snack):
-				meal = random.randint(15,30)
-				hb.eat(current_datetime,meal)
-				meal_dose = meal/insulin_to_carb
-				correction_difference = last_glucose-correction[1]
-				correction_dose = correction_difference/correction[0] if abs(correction_difference)>correction[2] else 0
-				correction_dose = correction_dose if not correction_given else 0
-				ip.bolus(current_datetime,meal_dose+correction_dose)
-
-				#with open(FILENAME,"a") as file:
-				#	file.write("A late night snack has been eaten\n")
-				#	file.write("Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n")
-				#	file.write("Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n")
-				#aws_client.publish("Ascentti/DiabetesMonitor","Insulin,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal_dose+correction_dose) + "\n",1)
-				#aws_client.publish("Ascentti/DiabetesMonitor","Meal,\t\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(meal) + "\n",1)
-				insulin_usage = meal_dose+correction_dose
-				carbs_ate = meal
+				insulin_usage, carbs_ate = eatFood(hb,ip,15,30,insulin_to_carb,correction)
 
 				snack = 0.05
 				snack_ate = True
@@ -276,20 +271,20 @@ if __name__ == '__main__':
 		elif( current_datetime > correction_end ):
 			correction_given = False
 
-		#with open(FILENAME,"a") as file:
-		#	file.write("Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n")
-		#aws_client.publish("Ascentti/DiabetesMonitor","Glucose,\t" + current_datetime.strftime("%Y-%m-%d %H:%M:%S") + ",\t" + str(last_glucose) + "\n",1)
-
 		data = [{ USERNAME : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
 		json_data = json.dumps(data)
 
 		try:
-			aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
-		except AWSIoTPythonSDK.exception.AWSIoTExceptions.publishError:
-			print("Error occurred, restarting aws client")
-			aws_client = aws_initialize()
-			aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
+			aws_client.connect()
+		except ValueError:
+			print("Websocket Handshake Error occurred, reinitializing aws client")
+			aws_client = aws_initialize(USERNAME)
+			aws_client.connect()
+		time.sleep(2)
+		aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
+		time.sleep(2)
+		aws_client.disconnect()
 
-		time.sleep(D_TIME*60)
+		time.sleep(D_TIME*60-4)
 
 	

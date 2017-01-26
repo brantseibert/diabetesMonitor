@@ -19,53 +19,8 @@ import boto3
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 import sys
 import logging
-import time
-import getopt
 
-def aws_initialize(USERNAME):
-	# Usage
-	usageInfo = """Usage:
-
-	python basicPubSub_CognitoSTS.py -e <endpoint> -r <rootCAFilePath> -C <CognitoIdentityPoolID>
-
-
-	Type "python basicPubSub_CognitoSTS.py -h" for available options.
-	"""
-	# Help info
-	helpInfo = """-e, --endpoint
-		Your AWS IoT custom endpoint
-	-r, --rootCA
-		Root CA file path
-	-C, --CognitoIdentityPoolID
-		Your AWS Cognito Identity Pool ID
-	-h, --help
-		Help information
-
-
-	"""
-
-	# Read in command-line parameters
-	host = ""
-	rootCAPath = ""
-	cognitoIdentityPoolID = ""
-	try:
-		opts, args = getopt.getopt(sys.argv[1:], "he:r:C:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID="])
-		if len(opts) == 0:
-			raise getopt.GetoptError("No input parameters!")
-		for opt, arg in opts:
-			if opt in ("-h", "--help"):
-				print(helpInfo)
-				exit(0)
-			if opt in ("-e", "--endpoint"):
-				host = arg
-			if opt in ("-r", "--rootCA"):
-				rootCAPath = arg
-			if opt in ("-C", "--CognitoIdentityPoolID"):
-				cognitoIdentityPoolID = arg
-	except getopt.GetoptError:
-		print(usageInfo)
-		exit(1)
-
+def aws_initialize(USERNAME,host="",rootCAPath="",cognitoIdentityPoolID=""):
 	# Missing configuration notification
 	missingConfiguration = False
 	if not host:
@@ -92,8 +47,6 @@ def aws_initialize(USERNAME):
 	identityPoolID = cognitoIdentityPoolID
 	region = host.split('.')[2]
 	cognitoIdentityClient = boto3.client('cognito-identity', region_name=region)
-	# identityPoolInfo = cognitoIdentityClient.describe_identity_pool(IdentityPoolId=identityPoolID)
-	# print identityPoolInfo
 
 	temporaryIdentityId = cognitoIdentityClient.get_id(IdentityPoolId=identityPoolID)
 	identityID = temporaryIdentityId["IdentityId"]
@@ -116,9 +69,5 @@ def aws_initialize(USERNAME):
 	myAWSIoTMQTTClient.configureDrainingFrequency(2)  # Draining: 2 Hz
 	myAWSIoTMQTTClient.configureConnectDisconnectTimeout(10)  # 10 sec
 	myAWSIoTMQTTClient.configureMQTTOperationTimeout(5)  # 5 sec
-
-	# Connect and subscribe to AWS IoT
-	myAWSIoTMQTTClient.connect()
-	time.sleep(2)
 
 	return myAWSIoTMQTTClient
