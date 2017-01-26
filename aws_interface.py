@@ -35,15 +35,6 @@ def aws_initialize(USERNAME,host="",rootCAPath="",cognitoIdentityPoolID=""):
 	if missingConfiguration:
 		exit(2)
 
-	# Configure logging
-	#logger = logging.getLogger("AWSIoTPythonSDK.core")
-	#logger.setLevel(logging.DEBUG)
-	#streamHandler = logging.StreamHandler()
-	#formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	#streamHandler.setFormatter(formatter)
-	#logger.addHandler(streamHandler)
-
-	# Cognito auth
 	identityPoolID = cognitoIdentityPoolID
 	region = host.split('.')[2]
 	cognitoIdentityClient = boto3.client('cognito-identity', region_name=region)
@@ -52,6 +43,7 @@ def aws_initialize(USERNAME,host="",rootCAPath="",cognitoIdentityPoolID=""):
 	identityID = temporaryIdentityId["IdentityId"]
 
 	temporaryCredentials = cognitoIdentityClient.get_credentials_for_identity(IdentityId=identityID)
+
 	AccessKeyId = temporaryCredentials["Credentials"]["AccessKeyId"]
 	SecretKey = temporaryCredentials["Credentials"]["SecretKey"]
 	SessionToken = temporaryCredentials["Credentials"]["SessionToken"]
