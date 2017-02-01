@@ -150,7 +150,7 @@ def randomItC(file):
 
 def randomBasal(file):
 	file.write("Basal\n")
-	num_basal = random.randint(1,6)
+	num_basal = random.randint(3,6)
 	file.write("0,0,0,"+str(round(0.5*random.random()+1,2))+"\n")
 	time_division = 24/num_basal
 	for i in range(0,num_basal):
