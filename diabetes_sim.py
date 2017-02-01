@@ -42,8 +42,6 @@ helpInfo = """
 #############################################
 ## Variables used to simulate glucose levels
 #############################################
-USERNAME = ""
-
 ## Time between steps (minutes)
 D_TIME = 5
 
@@ -52,31 +50,24 @@ STEPS = 60/D_TIME
 
 ## Simulated glucose level (mg/dL)
 glucose = 120
-## Delta glucose level  (mg/dL/h)
-#  should roughly be 0 for perfect control
-D_GLUCOSE = 50
+
 ## Max glucose level, the level where a correction 
 #  should be applied (mg/dL)
 MAX_GLUCOSE = 300
+
 ## Min glucose level, the level where food should 
 #  be eaten (mg/dL)
 MIN_GLUCOSE = 50
 
-## Delta bolus, the rate at which all bolus injections
-#  affects current glucose levels (mg/dL/h)
-d_bolus = 0
-## Delta basal, the rate at which basal injections
-#  affects current glucose levels (mg/dL/h)
-d_basal = 0
+## Delta glucose level  (mg/dL/h)
+#  should roughly be 0 for perfect control
+D_GLUCOSE = 50
+
 ## Delta glucose level per unit of insulin (mg/dL/h/units)
 D_GTOI = -27
 
-## Delta Carbs, the rate at which all the food eaten will
-#  affect current glucose levels (mg/dL/h)
-d_carbs = 0
 ## Delta glucose level per carbs (mg/dL/h/g)
 D_GTOC = 4
-
 
 #####################################################
 ## Meal Schedules 
@@ -127,15 +118,29 @@ def isSnack(current_time):
 ## Grab a user defined username so that the data being sent 
 #  can be unique to each instance
 def getUsername():
-		try:
-				with open('username.txt') as f:
-						return f.readline()
-		except IOError:
-				f = open('username.txt', 'w')
-				name = raw_input('Enter patient name: ')
-				f.write(name)
-				f.close()
-				return name
+	try:
+		with open('username.txt') as f:
+			return f.readline()
+	except IOError:
+		f = open('username.txt', 'w')
+		name = raw_input('Enter patient name: ')
+		f.write(name)
+		f.close()
+		return name
+
+def getSensitivityLevels():
+	try:
+		with open('sensitivity.txt') as f:
+			values = f.readline()
+			values = values.split(",")
+			return float(values[0]), float(values[1]), float(values[2])
+	except IOError:
+		f = open('sensitivity.txt', 'w')
+		dg = round(20*random.random()+40,2)
+		di = round(5*random.random()-30,2)
+		dc = round(2*random.random()+3,2)
+		f.write(str(dg)+","+str(di)+","+str(dc))
+		return dg, di, dc
 
 def randomItC(file):
 	file.write("ItC\n")
@@ -171,7 +176,6 @@ def randomCorrection(file):
 		base = str(random.randint(110,130))
 		margin = str(random.randint(25,35))
 		file.write(str(hour)+","+str(minute)+",0,"+str(ratio)+","+str(base)+","+str(margin)+"\n")
-
 
 def randomizePumpSettings():
 	if not os.path.isfile('pump_settings.txt'):
@@ -219,8 +223,12 @@ if __name__ == '__main__':
 		print(usageInfo)
 		exit(1)
 
+	## Initialize settings so that each "patient" can be unique
 	USERNAME = getUsername()
 	print( "Starting Diabetes Monitor for patient: " + USERNAME )
+
+	D_GLUCOSE, D_GTOI, D_GTOC = getSensitivityLevels()
+	# print( "Sensitivity levels at:\t" + str(D_GLUCOSE) + ",\t" + str(D_GTOI) + ",\t" + str(D_GTOC) ) 
 
 	randomizePumpSettings()
 

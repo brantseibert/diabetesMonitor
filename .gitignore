@@ -6,3 +6,4 @@ __pycache__
 *.pyc
 username.txt
 pump_settings.txt
+sensitivity.txt
