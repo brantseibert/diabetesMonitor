@@ -5,3 +5,4 @@ __pycache__
 *.crt
 *.pyc
 username.txt
+pump_settings.txt
