@@ -20,7 +20,7 @@ from timezone import MST
 usageInfo = """
 Usage:
 
-python diabetes_sim.py -e <endpoint> -r <rootCAFilePath> -C <CognitoIdentityPoolID>
+python diabetes_sim.py -e <endpoint> -r <rootCAFilePath> -C <CognitoIdentityPoolID> -u <username>
 
 
 Type "python diabetes_sim.py -h" for available options.
@@ -34,6 +34,8 @@ helpInfo = """
 	Root CA file path
 -C, --CognitoIdentityPoolID
 	Your AWS Cognito Identity Pool ID
+-u, --USERNAME
+	How the patient will be identified
 -h, --help
 	Help information
 
@@ -128,14 +130,14 @@ def getUsername():
 		f.close()
 		return name
 
-def getSensitivityLevels():
+def getSensitivityLevels(file):
 	try:
-		with open('sensitivity.txt') as f:
+		with open(file) as f:
 			values = f.readline()
 			values = values.split(",")
 			return float(values[0]), float(values[1]), float(values[2])
 	except IOError:
-		f = open('sensitivity.txt', 'w')
+		f = open(file, 'w')
 		dg = round(20*random.random()+40,2)
 		di = round(5*random.random()-30,2)
 		dc = round(2*random.random()+3,2)
@@ -177,9 +179,9 @@ def randomCorrection(file):
 		margin = str(random.randint(25,35))
 		file.write(str(hour)+","+str(minute)+",0,"+str(ratio)+","+str(base)+","+str(margin)+"\n")
 
-def randomizePumpSettings():
-	if not os.path.isfile('pump_settings.txt'):
-		f = open('pump_settings.txt', 'w')
+def randomizePumpSettings(file):
+	if not os.path.isfile(file):
+		f = open(file, 'w')
 		randomItC(f)
 		randomBasal(f)
 		randomCorrection(f)
@@ -205,8 +207,9 @@ if __name__ == '__main__':
 	host = ""
 	rootCAPath = ""
 	cognitoIdentityPoolID = ""
+	USERNAME = ""
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "he:r:C:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID="])
+		opts, args = getopt.getopt(sys.argv[1:], "he:r:C:u:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID=", "USERNAME="])
 		if len(opts) == 0:
 			raise getopt.GetoptError("No input parameters!")
 		for opt, arg in opts:
@@ -219,21 +222,25 @@ if __name__ == '__main__':
 				rootCAPath = arg
 			if opt in ("-C", "--CognitoIdentityPoolID"):
 				cognitoIdentityPoolID = arg
+			if opt in ("-u", "--USERNAME"):
+				USERNAME = arg
+			else:
+				USERNAME = getUsername()
 	except getopt.GetoptError:
 		print(usageInfo)
 		exit(1)
 
-	## Initialize settings so that each "patient" can be unique
-	USERNAME = getUsername()
 	print( "Starting Diabetes Monitor for patient: " + USERNAME )
 
-	D_GLUCOSE, D_GTOI, D_GTOC = getSensitivityLevels()
+	sensitivity_string = "sensitivity_"+USERNAME+".txt"
+	D_GLUCOSE, D_GTOI, D_GTOC = getSensitivityLevels(sensitivity_string)
 	# print( "Sensitivity levels at:\t" + str(D_GLUCOSE) + ",\t" + str(D_GTOI) + ",\t" + str(D_GTOC) ) 
 
-	randomizePumpSettings()
+	setting_string = "pump_settings_"+USERNAME+".txt"
+	randomizePumpSettings(setting_string)
 
 	aws_client = aws_initialize(USERNAME,host,rootCAPath,cognitoIdentityPoolID)
-	ip = InsulinPump()
+	ip = InsulinPump(USERNAME)
 	hb = HumanBody()
 
 	while(True):

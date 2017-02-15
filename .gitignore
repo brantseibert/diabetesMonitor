@@ -4,6 +4,6 @@ __pycache__
 *.key
 *.crt
 *.pyc
-username.txt
-pump_settings.txt
-sensitivity.txt
+username*
+pump_settings*
+sensitivity*

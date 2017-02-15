@@ -17,13 +17,13 @@ from timezone import MST
 #############################################################
 class InsulinPump:
 
-	def __init__(self):
+	def __init__(self,name):
 		## user controllable variables
 		self.insulin_to_carb = []
 		self.basal_rate = []
 		self.correction = []
 
-		self.getPumpSettings()
+		self.getPumpSettings(name)
 
 		## insulin usage variables
 		self.insulin_on_board = []
@@ -33,8 +33,8 @@ class InsulinPump:
 		self.clear.start()
 
 
-	def getPumpSettings(self):
-		f = open("pump_settings.txt",'r')
+	def getPumpSettings(self,name):
+		f = open("pump_settings_"+name+".txt",'r')
 
 		itc_next = False
 		basal_next = False
