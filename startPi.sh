@@ -8,7 +8,7 @@ cd home/pi/Documents/Ascentti/Ascentti-Diabetes
 sleep 10
 
 # Update the source code for the diabetes simulator
-git pull
+sudo git pull
 
 # Check to see if root CA file exists, download if not
 if [ ! -f ./root-CA.crt ]; then
