@@ -331,7 +331,7 @@ if __name__ == '__main__':
 		elif( current_datetime > correction_end ):
 			correction_given = False
 
-		data = [{ USERNAME : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
+		data = [{ 'Username' : USERNAME, 'Data' : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
 		json_data = json.dumps(data)
 
 		try:
