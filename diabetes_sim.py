@@ -223,7 +223,7 @@ if __name__ == '__main__':
 			if opt in ("-C", "--CognitoIdentityPoolID"):
 				cognitoIdentityPoolID = arg
 			if opt in ("-u", "--USERNAME"):
-				USERNAME = arg
+				USERNAME = "patient"+arg
 			else:
 				USERNAME = getUsername()
 	except getopt.GetoptError:
@@ -331,7 +331,8 @@ if __name__ == '__main__':
 		elif( current_datetime > correction_end ):
 			correction_given = False
 
-		data = [{ 'Username' : USERNAME, 'Data' : { 'Glucose' : last_glucose, 'Insulin' : insulin_usage, 'Carbs' : carbs_ate, 'Date' : current_datetime.strftime("%Y-%m-%d %H:%M:%S") } }]
+		data = { 'Username' : USERNAME, 'Glucose' : float("%.2f" % last_glucose), 'Bolus' : insulin_usage, 'Basal' : basal,  'Carbs' : carbs_ate, 'Date' : int(time.time()) }
+		#data = {'Username' : USERNAME, 'Glucose' : float("%.2f" % last_glucose), 'time' : int(time.time()) }
 		json_data = json.dumps(data)
 
 		try:
@@ -341,7 +342,7 @@ if __name__ == '__main__':
 			aws_client = aws_initialize(USERNAME,host,rootCAPath,cognitoIdentityPoolID)
 			aws_client.connect()
 		time.sleep(2)
-		aws_client.publish("Ascentti/DiabetesMonitor",json_data,1)
+		aws_client.publish("DiabetesPatients/"+USERNAME,json_data,1)
 		time.sleep(2)
 		aws_client.disconnect()
 
