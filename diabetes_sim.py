@@ -200,55 +200,25 @@ def eatFood(hb,ip,minCarbs,maxCarbs,insulin_to_carb,correction):
 	ip.bolus(current_datetime,meal_dose+correction_dose)
 
 	return (meal_dose+correction_dose), meal
-
-		
-if __name__ == '__main__':
-	# Read in command-line parameters
-	host = ""
-	rootCAPath = ""
-	cognitoIdentityPoolID = ""
-	USERNAME = ""
-	try:
-		opts, args = getopt.getopt(sys.argv[1:], "he:r:C:u:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID=", "USERNAME="])
-		if len(opts) == 0:
-			raise getopt.GetoptError("No input parameters!")
-		for opt, arg in opts:
-			if opt in ("-h", "--help"):
-				print(helpInfo)
-				exit(0)
-			if opt in ("-e", "--endpoint"):
-				host = arg
-			if opt in ("-r", "--rootCA"):
-				rootCAPath = arg
-			if opt in ("-C", "--CognitoIdentityPoolID"):
-				cognitoIdentityPoolID = arg
-			if opt in ("-u", "--USERNAME"):
-				USERNAME = "patient"+arg
-			else:
-				USERNAME = getUsername()
-	except getopt.GetoptError:
-		print(usageInfo)
-		exit(1)
-
-	print( "Starting Diabetes Monitor for patient: " + USERNAME )
-
-	sensitivity_string = "sensitivity_"+USERNAME+".txt"
+	
+def genInstanceDMData(userid, last_glucose_reading):
+	sensitivity_string = "sensitivity_" + userid + ".txt"
 	D_GLUCOSE, D_GTOI, D_GTOC = getSensitivityLevels(sensitivity_string)
-	# print( "Sensitivity levels at:\t" + str(D_GLUCOSE) + ",\t" + str(D_GTOI) + ",\t" + str(D_GTOC) ) 
-
-	setting_string = "pump_settings_"+USERNAME+".txt"
+	print( "Sensitivity levels at:\t" + str(D_GLUCOSE) + ",\t" + str(D_GTOI) + ",\t" + str(D_GTOC) )
+	
+	setting_string = "pump_settings_" + userid + ".txt"
 	randomizePumpSettings(setting_string)
 
-	aws_client = aws_initialize(USERNAME,host,rootCAPath,cognitoIdentityPoolID)
-	ip = InsulinPump(USERNAME)
+	ip = InsulinPump(userid)
 	hb = HumanBody()
-
-	while(True):
-
+	
+	diabetesMonitorInstance(ip,hb,userid,last_glucose_reading):
+	
+	
+def diabetesMonitorInstance(ip,hb,userid,lglucose):
 		insulin_usage = 0
-		carbs_ate = 0
-				
-		last_glucose = glucose
+		carbs_ate = 0	
+		last_glucose = lglucose
 
 		current_datetime = datetime.datetime.now(MST())
 
@@ -268,7 +238,7 @@ if __name__ == '__main__':
 		d_basal = basal*D_GTOI/STEPS
 
 		# Calculate the newest glucose measurement
-		glucose = last_glucose + D_GLUCOSE/STEPS + d_carbs + d_bolus + d_basal
+		lglucose = last_glucose + D_GLUCOSE/STEPS + d_carbs + d_bolus + d_basal
 
 		## First thing to consider is if the patient has reached the 
 		#  max or min glucose level. If the max is reached, a bolus is given.
@@ -331,10 +301,54 @@ if __name__ == '__main__':
 		elif( current_datetime > correction_end ):
 			correction_given = False
 
-		data = { 'Username' : USERNAME, 'Glucose' : float("%.2f" % last_glucose), 'Bolus' : insulin_usage, 'Basal' : basal,  'Carbs' : carbs_ate, 'Date' : int(time.time()) }
-		#data = {'Username' : USERNAME, 'Glucose' : float("%.2f" % last_glucose), 'time' : int(time.time()) }
+		data = { 'UserID' : userid, 'Glucose' : float("%.2f" % last_glucose), 'Bolus' : insulin_usage, 'Basal' : basal,  'Carbs' : carbs_ate, 'Date' : int(time.time()) }
 		json_data = json.dumps(data)
+		return (glucose, json_data)
 
+			
+
+		
+if __name__ == '__main__':
+	# Read in command-line parameters
+	host = ""
+	rootCAPath = ""
+	cognitoIdentityPoolID = ""
+	USERNAME = ""
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "he:r:C:u:", ["help", "endpoint=", "rootCA=", "CognitoIdentityPoolID=", "USERNAME="])
+		if len(opts) == 0:
+			raise getopt.GetoptError("No input parameters!")
+		for opt, arg in opts:
+			if opt in ("-h", "--help"):
+				print(helpInfo)
+				exit(0)
+			if opt in ("-e", "--endpoint"):
+				host = arg
+			if opt in ("-r", "--rootCA"):
+				rootCAPath = arg
+			if opt in ("-C", "--CognitoIdentityPoolID"):
+				cognitoIdentityPoolID = arg
+			if opt in ("-u", "--USERNAME"):
+				USERNAME = "patient"+arg
+			else:
+				USERNAME = getUsername()
+	except getopt.GetoptError:
+		print(usageInfo)
+		exit(1)
+
+	print( "Starting Diabetes Monitor for patient: [" + USERNAME + "]")
+	sensitivity_string = "sensitivity_" + USERNAME + ".txt"
+	D_GLUCOSE, D_GTOI, D_GTOC = getSensitivityLevels(sensitivity_string)
+	print( "Sensitivity levels at:\t" + str(D_GLUCOSE) + ",\t" + str(D_GTOI) + ",\t" + str(D_GTOC) )
+	
+	setting_string = "pump_settings_" + USERNAME + ".txt"
+	randomizePumpSettings(setting_string)
+
+	ip = InsulinPump(USERNAME)
+	hb = HumanBody()
+	
+	while(True):
+		(glucose,json_data) = diabetesMonitorInstance(ip,hb,USERNAME,glucose)
 		try:
 			aws_client.connect()
 		except ValueError:
